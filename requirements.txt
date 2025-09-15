@@ -1,0 +1,7 @@
+flask
+flask-cors
+fpdf
+google-cloud-aiplatform
+google-cloud-firestore
+python-dotenv
+gunicorn
