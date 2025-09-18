@@ -1,7 +1,8 @@
-Flask
-gunicorn
+flask
+flask-cors
 fpdf
-google-cloud-storage
+gunicorn
+google-cloud-aiplatform
 google-cloud-firestore
-google-cloud-aiplatform>=1.66.0
-vertexai
+python-dotenv
+requests
