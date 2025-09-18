@@ -1,8 +1,7 @@
-flask
-flask-cors
-fpdf
-gunicorn
-google-cloud-aiplatform
-google-cloud-firestore
-python-dotenv
-requests
+Flask==3.0.2
+flask-cors==4.0.0
+fpdf==1.7.2
+python-dotenv==1.0.1
+google-cloud-aiplatform==1.64.0
+google-cloud-firestore==2.16.0
+gunicorn==21.2.0
