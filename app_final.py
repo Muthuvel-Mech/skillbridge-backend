@@ -1,52 +1,122 @@
-from flask import Flask, request, jsonify
 import os
-import vertexai
-from vertexai.generative_models import GenerativeModel
+from flask import Flask, request, jsonify, send_file
+from flask_cors import CORS
 from fpdf import FPDF
+from google.cloud import aiplatform, firestore
+from dotenv import load_dotenv
+import tempfile
 
-app = Flask(__name__)
-
-# Get environment variables
-PROJECT_ID = os.getenv("GCP_PROJECT_ID")
-LOCATION = os.getenv("GCP_LOCATION")
+# ----------------------
+# Load environment
+# ----------------------
+load_dotenv()
+PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-project-id")
+LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash")
+FIRESTORE_ENABLED = os.getenv("FIRESTORE_ENABLED", "true").lower() == "true"
 
-# Init Vertex AI
-vertexai.init(project=PROJECT_ID, location=LOCATION)
-model = GenerativeModel(MODEL_ID)
+# ----------------------
+# Initialize Flask
+# ----------------------
+app = Flask(__name__)
+CORS(app)
 
+# ----------------------
+# Initialize Vertex AI
+# ----------------------
+aiplatform.init(project=PROJECT_ID, location=LOCATION)
+model = aiplatform.GenerativeModel(MODEL_ID)
+
+# ----------------------
+# Firestore (optional)
+# ----------------------
+db = None
+if FIRESTORE_ENABLED:
+    try:
+        db = firestore.Client()
+    except Exception as e:
+        print("⚠️ Firestore not available:", e)
+
+# ----------------------
+# API: Career Recommendation
+# ----------------------
 @app.route("/api/recommend", methods=["POST"])
 def recommend():
-    data = request.get_json()
+    data = request.json
     user_input = data.get("input", "")
-    response = model.generate_content(user_input)
-    return jsonify({"recommendations": response.text})
+    if not user_input:
+        return jsonify({"error": "Missing input"}), 400
 
+    prompt = f"""You are a career advisor AI. 
+    Suggest 3 career paths and required skills for: {user_input}.
+    Answer in bullet points."""
+
+    try:
+        response = model.generate_content(prompt)
+        text = response.text
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"recommendations": text})
+
+# ----------------------
+# API: Save Data
+# ----------------------
 @app.route("/api/save", methods=["POST"])
 def save():
-    data = request.get_json()
-    content = data.get("content", "")
-    # TODO: Firestore integration
-    return jsonify({"status": "saved", "content": content})
+    if not db:
+        return jsonify({"error": "Firestore disabled"}), 503
 
+    data = request.json
+    try:
+        doc_ref = db.collection("skillbridge_history").add(data)
+        return jsonify({"status": "saved", "doc_id": doc_ref[1].id})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ----------------------
+# API: Get History
+# ----------------------
 @app.route("/api/history", methods=["GET"])
 def history():
-    # TODO: Firestore integration
-    return jsonify([])
+    if not db:
+        return jsonify({"error": "Firestore disabled"}), 503
 
+    try:
+        docs = db.collection("skillbridge_history").stream()
+        history = [doc.to_dict() for doc in docs]
+        return jsonify(history)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ----------------------
+# API: Export PDF
+# ----------------------
 @app.route("/api/export_pdf", methods=["POST"])
 def export_pdf():
-    data = request.get_json()
-    content = data.get("content", "")
+    data = request.json
+    content = data.get("content", "No content provided")
 
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, content)
-    pdf_output = "/tmp/report.pdf"
-    pdf.output(pdf_output)
+    try:
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        pdf.multi_cell(0, 10, content)
 
-    return jsonify({"status": "exported"})
+        tmpfile = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        pdf.output(tmpfile.name)
+        return send_file(tmpfile.name, as_attachment=True, download_name="SkillBridge_Report.pdf")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ----------------------
+# Health check
+# ----------------------
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({"status": "SkillBridge AI Backend running"})
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)
