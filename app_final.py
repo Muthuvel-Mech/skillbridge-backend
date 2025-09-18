@@ -2,9 +2,13 @@ import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from fpdf import FPDF
-from google.cloud import aiplatform, firestore
+from google.cloud import firestore
 from dotenv import load_dotenv
 import tempfile
+
+# Vertex AI imports
+import vertexai
+from vertexai.preview.generative_models import GenerativeModel
 
 # ----------------------
 # Load environment
@@ -24,8 +28,8 @@ CORS(app)
 # ----------------------
 # Initialize Vertex AI
 # ----------------------
-aiplatform.init(project=PROJECT_ID, location=LOCATION)
-model = aiplatform.GenerativeModel(MODEL_ID)
+vertexai.init(project=PROJECT_ID, location=LOCATION)
+model = GenerativeModel(MODEL_ID)
 
 # ----------------------
 # Firestore (optional)
@@ -53,7 +57,7 @@ def recommend():
 
     try:
         response = model.generate_content(prompt)
-        text = response.text
+        text = response.candidates[0].content.parts[0].text
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
