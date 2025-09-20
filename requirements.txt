@@ -1,7 +1,9 @@
-Flask
+flask
 flask-cors
 fpdf
-google-cloud-aiplatform>=1.66.0
-google-cloud-firestore
 python-dotenv
+google-cloud-firestore
+google-cloud-aiplatform
+google-auth
+vertexai
 gunicorn
