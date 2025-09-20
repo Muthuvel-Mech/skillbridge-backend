@@ -1,18 +1,10 @@
+
 services:
   - type: web
     name: skillbridge-backend
     env: python
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: GOOGLE_APPLICATION_CREDENTIALS
         value: /etc/secrets/gcp-key.json
-      - key: GCP_PROJECT_ID
-        value: your-project-id
-      - key: GCP_LOCATION
-        value: us-central1
-      - key: MODEL_ID
-        value: gemini-1.5-flash
-      - key: FIRESTORE_ENABLED
-        value: true
