@@ -1,28 +1,26 @@
-
 import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from fpdf import FPDF
-from google.cloud import firestore
+from google.cloud import firestore, aiplatform
+from google.oauth2 import service_account
 from dotenv import load_dotenv
 import tempfile
-
-# Vertex AI import
-import vertexai
-from vertexai.preview.generative_models import GenerativeModel
 
 # ----------------------
 # Load environment
 # ----------------------
 load_dotenv()
-
-# Set Google credentials path (Render secret mount)
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/gcp-key.json"
-
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-project-id")
 LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash")
 FIRESTORE_ENABLED = os.getenv("FIRESTORE_ENABLED", "true").lower() == "true"
+
+# ----------------------
+# Load GCP Credentials (Render Secret File)
+# ----------------------
+KEY_PATH = "/etc/secrets/gcp-key.json"
+creds = service_account.Credentials.from_service_account_file(KEY_PATH)
 
 # ----------------------
 # Initialize Flask
@@ -33,7 +31,8 @@ CORS(app)
 # ----------------------
 # Initialize Vertex AI
 # ----------------------
-vertexai.init(project=PROJECT_ID, location=LOCATION)
+aiplatform.init(project=PROJECT_ID, location=LOCATION, credentials=creds)
+from vertexai.generative_models import GenerativeModel
 model = GenerativeModel(MODEL_ID)
 
 # ----------------------
@@ -42,7 +41,7 @@ model = GenerativeModel(MODEL_ID)
 db = None
 if FIRESTORE_ENABLED:
     try:
-        db = firestore.Client()
+        db = firestore.Client(credentials=creds, project=PROJECT_ID)
     except Exception as e:
         print("⚠️ Firestore not available:", e)
 
@@ -62,12 +61,7 @@ def recommend():
 
     try:
         response = model.generate_content(prompt)
-
-        # Safe parsing
-        if response.candidates and response.candidates[0].content.parts:
-            text = response.candidates[0].content.parts[0].text
-        else:
-            text = "⚠️ No recommendations generated"
+        text = response.candidates[0].content.parts[0].text
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
