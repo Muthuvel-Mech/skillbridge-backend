@@ -1,11 +1,15 @@
+
 import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from fpdf import FPDF
-from google.cloud import firestore, aiplatform
-from google.oauth2 import service_account
+from google.cloud import firestore
 from dotenv import load_dotenv
 import tempfile
+
+# Vertex AI import
+import vertexai
+from vertexai.preview.generative_models import GenerativeModel
 
 # ----------------------
 # Load environment
@@ -16,11 +20,8 @@ LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash")
 FIRESTORE_ENABLED = os.getenv("FIRESTORE_ENABLED", "true").lower() == "true"
 
-# ----------------------
-# Load GCP Credentials (Render Secret File)
-# ----------------------
-KEY_PATH = "/etc/secrets/gcp-key.json"
-creds = service_account.Credentials.from_service_account_file(KEY_PATH)
+# Set Google credentials (Render secret file)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/gcp-key.json"
 
 # ----------------------
 # Initialize Flask
@@ -31,8 +32,7 @@ CORS(app)
 # ----------------------
 # Initialize Vertex AI
 # ----------------------
-aiplatform.init(project=PROJECT_ID, location=LOCATION, credentials=creds)
-from vertexai.generative_models import GenerativeModel
+vertexai.init(project=PROJECT_ID, location=LOCATION)
 model = GenerativeModel(MODEL_ID)
 
 # ----------------------
@@ -41,7 +41,7 @@ model = GenerativeModel(MODEL_ID)
 db = None
 if FIRESTORE_ENABLED:
     try:
-        db = firestore.Client(credentials=creds, project=PROJECT_ID)
+        db = firestore.Client()
     except Exception as e:
         print("⚠️ Firestore not available:", e)
 
