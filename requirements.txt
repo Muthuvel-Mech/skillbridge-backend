@@ -1,4 +1,4 @@
-flask
+Flask
 flask-cors
 fpdf
 google-cloud-aiplatform>=1.66.0
