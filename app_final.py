@@ -1,4 +1,3 @@
-
 import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
@@ -7,7 +6,7 @@ from google.cloud import firestore
 from dotenv import load_dotenv
 import tempfile
 
-# Vertex AI import
+# Vertex AI new import
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
 
@@ -15,13 +14,14 @@ from vertexai.preview.generative_models import GenerativeModel
 # Load environment
 # ----------------------
 load_dotenv()
+
+# Add service account auth (Render secret file)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcp-key.json"
+
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-project-id")
 LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash")
 FIRESTORE_ENABLED = os.getenv("FIRESTORE_ENABLED", "true").lower() == "true"
-
-# Set Google credentials (Render secret file)
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/gcp-key.json"
 
 # ----------------------
 # Initialize Flask
@@ -42,6 +42,7 @@ db = None
 if FIRESTORE_ENABLED:
     try:
         db = firestore.Client()
+        print("✅ Firestore initialized successfully")
     except Exception as e:
         print("⚠️ Firestore not available:", e)
 
