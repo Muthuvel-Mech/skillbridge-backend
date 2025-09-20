@@ -1,10 +1,15 @@
+
 import os
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 from fpdf import FPDF
-from google.cloud import aiplatform, firestore
+from google.cloud import firestore
 from dotenv import load_dotenv
 import tempfile
+
+# Vertex AI new import
+import vertexai
+from vertexai.preview.generative_models import GenerativeModel
 
 # ----------------------
 # Load environment
@@ -24,8 +29,8 @@ CORS(app)
 # ----------------------
 # Initialize Vertex AI
 # ----------------------
-aiplatform.init(project=PROJECT_ID, location=LOCATION)
-model = aiplatform.GenerativeModel(MODEL_ID)
+vertexai.init(project=PROJECT_ID, location=LOCATION)
+model = GenerativeModel(MODEL_ID)
 
 # ----------------------
 # Firestore (optional)
@@ -47,18 +52,13 @@ def recommend():
     if not user_input:
         return jsonify({"error": "Missing input"}), 400
 
-    prompt = f"""
-    You are SkillBridge AI, a career advisor. 
-    Suggest exactly 3 career paths for: {user_input}.
-    For each path, list 3 required skills.
-    Answer clearly in bullet points.
-    """
+    prompt = f"""You are a career advisor AI. 
+    Suggest 3 career paths and required skills for: {user_input}.
+    Answer in bullet points."""
 
     try:
         response = model.generate_content(prompt)
-
-        # ✅ Fix: sometimes .text can be None
-        text = response.text if response and hasattr(response, "text") else "No recommendations available."
+        text = response.candidates[0].content.parts[0].text  # new SDK style
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -120,6 +120,7 @@ def export_pdf():
 @app.route("/", methods=["GET"])
 def index():
     return jsonify({"status": "SkillBridge AI Backend running"})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
