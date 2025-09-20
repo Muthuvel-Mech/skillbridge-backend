@@ -7,7 +7,7 @@ from google.cloud import firestore
 from dotenv import load_dotenv
 import tempfile
 
-# Vertex AI new import
+# Vertex AI import
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
 
@@ -15,6 +15,10 @@ from vertexai.preview.generative_models import GenerativeModel
 # Load environment
 # ----------------------
 load_dotenv()
+
+# Set Google credentials path (Render secret mount)
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/gcp-key.json"
+
 PROJECT_ID = os.getenv("GCP_PROJECT_ID", "your-project-id")
 LOCATION = os.getenv("GCP_LOCATION", "us-central1")
 MODEL_ID = os.getenv("MODEL_ID", "gemini-1.5-flash")
@@ -58,7 +62,12 @@ def recommend():
 
     try:
         response = model.generate_content(prompt)
-        text = response.candidates[0].content.parts[0].text  # new SDK style
+
+        # Safe parsing
+        if response.candidates and response.candidates[0].content.parts:
+            text = response.candidates[0].content.parts[0].text
+        else:
+            text = "⚠️ No recommendations generated"
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
