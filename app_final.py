@@ -51,8 +51,10 @@ if FIRESTORE_ENABLED:
 # ----------------------
 @app.route("/api/recommend", methods=["POST"])
 def recommend():
-    data = request.json
-    user_input = data.get("input", "")
+    data = request.json or {}
+    # Accept both "input" and "skills"
+    user_input = data.get("input") or data.get("skills", "")
+    
     if not user_input:
         return jsonify({"error": "Missing input"}), 400
 
